@@ -744,6 +744,10 @@ func RunCli(args ...string) (string, error) {
 	return RunCliWithStdin("", args...)
 }
 
+func RunAdminCli(args ...string) (string, error) {
+	return RunAdminCliWithStdin("", args...)
+}
+
 func RunCliWithStdin(stdin string, args ...string) (string, error) {
 	if plainText {
 		args = append(args, "--plaintext")
@@ -753,6 +757,15 @@ func RunCliWithStdin(stdin string, args ...string) (string, error) {
 
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
 }
+
+func RunAdminCliWithStdin(stdin string, args ...string) (string, error) {
+	if plainText {
+		args = append(args, "--plaintext")
+	}
+	
+	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+}
+
 
 func Patch(path string, jsonPatch string) {
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
