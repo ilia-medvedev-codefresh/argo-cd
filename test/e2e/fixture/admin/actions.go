@@ -1,8 +1,6 @@
 package admin
 
 import (
-	"strings"
-
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
 )
 
@@ -19,15 +17,7 @@ type Actions struct {
 
 func (a *Actions) prepareExportCommand() []string {
 	a.context.t.Helper()
-	args := []string{"export"}
-
-	if a.context.applicationNamespaces != nil {
-		args = append(args, "--application-namespaces", strings.Join(a.context.applicationNamespaces, ","))
-	}
-
-	if a.context.applicationsetNamespaces != nil {
-		args = append(args, "--applicationset-namespaces", strings.Join(a.context.applicationsetNamespaces, ","))
-	}
+	args := []string{"export", "--application-namespaces", fixture.AppNamespace()}
 
 	return args
 }
@@ -46,13 +36,6 @@ func (a *Actions) IgnoreErrors() *Actions {
 func (a *Actions) DoNotIgnoreErrors() *Actions {
 	a.ignoreErrors = false
 	return a
-}
-
-func (a *Actions) prepareSetPasswordArgs(account string) []string {
-	a.context.t.Helper()
-	return []string{
-		"account", "update-password", "--account", account, "--current-password", fixture.AdminPassword, "--new-password", fixture.DefaultTestUserPassword,
-	}
 }
 
 func (a *Actions) runCli(args ...string) {

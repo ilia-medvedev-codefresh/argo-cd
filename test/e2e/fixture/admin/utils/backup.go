@@ -37,8 +37,7 @@ func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
 
 func (e ExportedResources) HasResource(resource kube.ResourceKey) bool {
 	for _, res := range e {
-
-		if (res.GetAPIVersion() == resource.Group &&
+		if (res.GetObjectKind().GroupVersionKind().Group == resource.Group &&
 		    res.GetKind() == resource.Kind &&
 		    res.GetName() == resource.Name &&
 			res.GetNamespace() == resource.Namespace) {
