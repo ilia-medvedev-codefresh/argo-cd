@@ -1,10 +1,7 @@
 package admin
 
 import (
-
 	"github.com/argoproj/argo-cd/v2/test/e2e/fixture"
-
-
 )
 
 // For admin CLI with kubernetes context

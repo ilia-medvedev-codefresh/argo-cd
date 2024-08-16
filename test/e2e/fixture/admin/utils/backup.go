@@ -12,36 +12,35 @@ import (
 type ExportedResources []unstructured.Unstructured
 
 func GetExportedResourcesFromOutput(output string) (ExportedResources, error) {
-
 	var resources []unstructured.Unstructured
-    docs := strings.Split(output, "---")
+	docs := strings.Split(output, "---")
 
-    for _, doc := range docs {
-        doc = strings.TrimSpace(doc)
-        if len(doc) == 0 {
-            continue
-        }
+	for _, doc := range docs {
+		doc = strings.TrimSpace(doc)
+		if len(doc) == 0 {
+			continue
+		}
 
-        var resourceData map[string]interface{}
+		var resourceData map[string]interface{}
 
-        if err := yaml.Unmarshal([]byte(doc), &resourceData); err != nil {
-            return nil, fmt.Errorf("error unmarshaling YAML: %w", err)
-        }
+		if err := yaml.Unmarshal([]byte(doc), &resourceData); err != nil {
+			return nil, fmt.Errorf("error unmarshaling YAML: %w", err)
+		}
 
-        resource := unstructured.Unstructured{Object: resourceData}
-        resources = append(resources, resource)
-    }
+		resource := unstructured.Unstructured{Object: resourceData}
+		resources = append(resources, resource)
+	}
 
-    return resources, nil
+	return resources, nil
 }
 
 func (e ExportedResources) HasResource(resource kube.ResourceKey) bool {
 	for _, res := range e {
-		if (res.GetObjectKind().GroupVersionKind().Group == resource.Group &&
-		    res.GetKind() == resource.Kind &&
-		    res.GetName() == resource.Name &&
-			res.GetNamespace() == resource.Namespace) {
-				return true
+		if res.GetObjectKind().GroupVersionKind().Group == resource.Group &&
+			res.GetKind() == resource.Kind &&
+			res.GetName() == resource.Name &&
+			res.GetNamespace() == resource.Namespace {
+			return true
 		}
 	}
 

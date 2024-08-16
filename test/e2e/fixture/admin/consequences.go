@@ -18,7 +18,6 @@ func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Conse
 	return c
 }
 
-
 func (c *Consequences) Given() *Context {
 	return c.context
 }

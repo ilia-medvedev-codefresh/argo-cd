@@ -14,8 +14,6 @@ type Context struct {
 	// seconds
 	timeout int
 	name    string
-	applicationNamespaces []string
-	applicationsetNamespaces []string
 }
 
 func Given(t *testing.T) *Context {
@@ -28,8 +26,8 @@ func GivenWithSameState(t *testing.T) *Context {
 	// for any context.
 	timeout := env.ParseNumFromEnv("ARGOCD_E2E_DEFAULT_TIMEOUT", 20, 0, 180)
 	return &Context{
-		t: t,
-		name: fixture.Name(),
+		t:       t,
+		name:    fixture.Name(),
 		timeout: timeout,
 	}
 }
