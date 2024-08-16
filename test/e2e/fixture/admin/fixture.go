@@ -14,5 +14,5 @@ func RunCli(args ...string) (string, error) {
 
 func RunCliWithStdin(stdin string, args ...string) (string, error) {
 	args = append([]string{"admin"}, args...)
-	return fixture.RunCliWithStdin("", true, args...)
+	return fixture.RunCliWithStdin(stdin, true, args...)
 }

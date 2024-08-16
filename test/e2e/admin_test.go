@@ -10,18 +10,15 @@ import (
 	fixtureutils "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin/utils"
 	appfixture "github.com/argoproj/argo-cd/v2/test/e2e/fixture/app"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v2/test/e2e/fixture/admin"
 )
 
 func TestBackupExportImport(t *testing.T) {
+	var exportRawOutput string
 	ctx := Given(t)
-
 	// Create application in argocd namespace
 	appctx := appfixture.GivenWithSameState(t)
-
-	//var exportRawOutput string
 
 	// Create application in test namespace
 	appctx.
@@ -53,12 +50,19 @@ func TestBackupExportImport(t *testing.T) {
 	  	RunExport().
 	  	Then().
 	  	AndCLIOutput(func(output string, err error) {
-		//exportRawOutput = output
+		exportRawOutput = output
 		assert.NoError(t, err, "export finished with error")
 		exportResources, err := fixtureutils.GetExportedResourcesFromOutput(output)
 		assert.NoError(t, err, "export format not valid")
 		assert.True(t, exportResources.HasResource(kube.NewResourceKey("", "ConfigMap", "", "argocd-cm")), "argocd-cm not found in export")
-		assert.True(t, exportResources.HasResource(kube.NewResourceKey(v1alpha1.ApplicationSchemaGroupVersionKind.Group, v1alpha1.ApplicationSchemaGroupVersionKind.Kind, "", "exported-app1")), "test namespace application not in export")
-		assert.True(t, exportResources.HasResource(kube.NewResourceKey(v1alpha1.ApplicationSchemaGroupVersionKind.Group, v1alpha1.ApplicationSchemaGroupVersionKind.Kind, fixture.AppNamespace(), "exported-app-oter-namespace")), "app namespace application not in export")
+		assert.True(t, exportResources.HasResource(kube.NewResourceKey(ApplicationSchemaGroupVersionKind.Group, ApplicationSchemaGroupVersionKind.Kind, "", "exported-app1")), "test namespace application not in export")
+		assert.True(t, exportResources.HasResource(kube.NewResourceKey(ApplicationSchemaGroupVersionKind.Group, ApplicationSchemaGroupVersionKind.Kind, fixture.AppNamespace(), "exported-app-oter-namespace")), "app namespace application not in export")
 	})
+
+	// Test import - cleanup
+	ctx = Given(t)
+
+	ctx.
+	  When().
+	  RunImport(exportRawOutput)
 }
