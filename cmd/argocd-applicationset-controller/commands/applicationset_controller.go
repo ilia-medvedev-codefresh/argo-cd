@@ -33,8 +33,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
+	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/applicationset/services"
 	appv1alpha1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
@@ -193,6 +195,8 @@ func NewCommand() *cobra.Command {
 			if webhookHandler != nil {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
+
+			metrics.Registry.MustRegister(appsetmetrics.NewAppsetMetricsCollector(appSetConfig))
 
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:                 topLevelGenerators,
