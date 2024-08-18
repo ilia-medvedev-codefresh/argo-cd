@@ -28,7 +28,7 @@ type ApplicationsetMetrics struct {
 }
 
 type appsetCollector struct {
-	appsClientSet *appclientset.Clientset
+	appsClientSet appclientset.Interface
 	labels  	  []string
 }
 
@@ -58,7 +58,7 @@ func (m *ApplicationsetMetrics) ObserveRconcile(appset *argoappv1.ApplicationSet
 	m.reconcileHistogram.WithLabelValues(appset.Namespace,appset.Name).Observe(duration.Seconds())
 }
 
-func newAppsetCollector(clientset *appclientset.Clientset, labels []string) (*appsetCollector) {
+func newAppsetCollector(clientset appclientset.Interface, labels []string) (*appsetCollector) {
 
 	descAppsetDefaultLabels = []string{"namespace", "name"}
 
