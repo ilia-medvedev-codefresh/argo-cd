@@ -33,7 +33,6 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
-	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	appsetmetrics "github.com/argoproj/argo-cd/v2/applicationset/metrics"
@@ -197,8 +196,6 @@ func NewCommand() *cobra.Command {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
 
-			metrics.Registry.MustRegister(appsetmetrics.NewAppsetMetricsCollector(appSetConfig, metricsAplicationsetLabels))
-
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:                 topLevelGenerators,
 				Client:                     mgr.GetClient(),
@@ -217,6 +214,7 @@ func NewCommand() *cobra.Command {
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
 				Cache:                      mgr.GetCache(),
+				Metrics:                    *appsetmetrics.NewApplicationsetMetrics(appSetConfig, metricsAplicationsetLabels),
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)

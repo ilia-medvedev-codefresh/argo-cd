@@ -47,6 +47,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/generators"
 	"github.com/argoproj/argo-cd/v2/applicationset/status"
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v2/applicationset/metrics"
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/util/db"
 	"github.com/argoproj/argo-cd/v2/util/glob"
@@ -91,6 +92,7 @@ type ApplicationSetReconciler struct {
 	GlobalPreservedAnnotations []string
 	GlobalPreservedLabels      []string
 	Cache                      cache.Cache
+	Metrics					   metrics.ApplicationsetMetrics
 }
 
 // +kubebuilder:rbac:groups=argoproj.io,resources=applicationsets,verbs=get;list;watch;create;update;patch;delete
@@ -101,6 +103,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	var applicationSetInfo argov1alpha1.ApplicationSet
 	parametersGenerated := false
+	startTime := time.Now()
+
 
 	if err := r.Get(ctx, req.NamespacedName, &applicationSetInfo); err != nil {
 		if client.IgnoreNotFound(err) != nil {
@@ -108,6 +112,10 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
+
+	defer func() {
+		r.Metrics.ObserveRconcile(&applicationSetInfo, time.Since(startTime))
+	}()
 
 	// Do not attempt to further reconcile the ApplicationSet if it is being deleted.
 	if applicationSetInfo.ObjectMeta.DeletionTimestamp != nil {
