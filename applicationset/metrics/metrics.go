@@ -18,7 +18,7 @@ var (
 	descAppsetInfo = prometheus.NewDesc(
 		"argocd_appset_info",
 		"Information about applicationset",
-		descAppsetDefaultLabels,
+		append(descAppsetDefaultLabels, "resource_update_status"),
 		nil,
 	)
 )
@@ -96,9 +96,19 @@ func (c *appsetCollector) Collect(ch chan<- prometheus.Metric) {
 		for _,label := range c.labels {
 			labelValues = append(labelValues, appset.GetLabels()[label])
 		}
-		ch <- prometheus.MustNewConstMetric(descAppsetInfo, prometheus.GaugeValue, 1 , appset.Namespace, appset.Name)
+
 		if len(c.labels) > 0 {
 			ch <- prometheus.MustNewConstMetric(descAppsetLabels, prometheus.GaugeValue, 1, append(commonLabelValues, labelValues...)...)
 		}
+
+		resourceUpdateStatus := "Unknown"
+
+		for _,condition := range appset.Status.Conditions {
+			if condition.Type == argoappv1.ApplicationSetConditionResourcesUpToDate {
+				resourceUpdateStatus = condition.Reason
+			}
+		}
+
+		ch <- prometheus.MustNewConstMetric(descAppsetInfo, prometheus.GaugeValue, 1 , appset.Namespace, appset.Name, resourceUpdateStatus)
 	}
 }
