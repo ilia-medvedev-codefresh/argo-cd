@@ -214,7 +214,7 @@ func NewCommand() *cobra.Command {
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
 				Cache:                      mgr.GetCache(),
-				Metrics:                    *appsetmetrics.NewApplicationsetMetrics(appSetConfig, metricsAplicationsetLabels),
+				Metrics:                    *appsetmetrics.NewApplicationsetMetrics(appsetmetrics.NewAppsetLister(mgr.GetClient()), metricsAplicationsetLabels),
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)

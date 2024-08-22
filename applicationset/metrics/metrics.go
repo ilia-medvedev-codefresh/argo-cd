@@ -1,14 +1,15 @@
 package metrics
 
 import (
-	"context"
+	//"context"
 	"time"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	//appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
+	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
 	"github.com/prometheus/client_golang/prometheus"
-	"k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -28,11 +29,12 @@ type ApplicationsetMetrics struct {
 }
 
 type appsetCollector struct {
-	appsClientSet appclientset.Interface
+	lister applisters.ApplicationSetLister
+	//appsClientSet appclientset.Interface
 	labels  	  []string
 }
 
-func NewApplicationsetMetrics(clientset *appclientset.Clientset, appsetLabels []string) (*ApplicationsetMetrics) {
+func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, appsetLabels []string) (*ApplicationsetMetrics) {
 
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -43,7 +45,7 @@ func NewApplicationsetMetrics(clientset *appclientset.Clientset, appsetLabels []
 		descAppsetDefaultLabels,
 	)
 
-	appsetCollector := newAppsetCollector(clientset, appsetLabels)
+	appsetCollector := newAppsetCollector(appsetLister, appsetLabels)
 
 	// Rgister collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
@@ -58,7 +60,7 @@ func (m *ApplicationsetMetrics) ObserveRconcile(appset *argoappv1.ApplicationSet
 	m.reconcileHistogram.WithLabelValues(appset.Namespace,appset.Name).Observe(duration.Seconds())
 }
 
-func newAppsetCollector(clientset appclientset.Interface, labels []string) (*appsetCollector) {
+func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string) (*appsetCollector) {
 
 	descAppsetDefaultLabels = []string{"namespace", "name"}
 
@@ -72,7 +74,7 @@ func newAppsetCollector(clientset appclientset.Interface, labels []string) (*app
 	}
 
 	return (&appsetCollector{
-		appsClientSet: clientset,
+		lister: lister,
 		labels:		   labels,
 	})
 }
@@ -87,9 +89,9 @@ func (c *appsetCollector) Describe(ch chan<- *prometheus.Desc) {
 
 // Collect implements the prometheus.Collector interface
 func (c *appsetCollector) Collect(ch chan<- prometheus.Metric) {
-	appsets, _ := c.appsClientSet.ArgoprojV1alpha1().ApplicationSets("").List(context.Background(),v1.ListOptions{})
+	appsets, _ := c.lister.List(labels.NewSelector())
 
-	for _, appset := range appsets.Items {
+	for _, appset := range appsets {
 		var labelValues =  make([]string,0)
 		commonLabelValues := []string{appset.Namespace, appset.Name}
 

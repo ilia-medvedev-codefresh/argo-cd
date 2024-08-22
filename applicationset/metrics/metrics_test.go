@@ -5,16 +5,20 @@ import (
 	// "log"
 	"net/http"
 	"net/http/httptest"
+
 	// "strings"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	//appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
+	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"sigs.k8s.io/yaml"
+  ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 const fakeAppset1 = `
@@ -72,11 +76,16 @@ func newFakeAppset(fakeAppYAML string) *argoappv1.ApplicationSet {
 
 func TestApplicationsetCollector(t *testing.T) {
 	appset := newFakeAppset(fakeAppset1)
-	appsets := []runtime.Object{appset}
+	appsets := []ctrlclient.Object{appset}
 
-	fakeClientSet := appclientset.NewSimpleClientset(appsets...)
 
-	appsetCollector := newAppsetCollector(fakeClientSet, []string{})
+  scheme := runtime.NewScheme()
+	err := v1alpha1.AddToScheme(scheme)
+  assert.NoError(t, err)
+
+  client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appsets...).Build()
+
+	appsetCollector := newAppsetCollector(NewAppsetLister(client), []string{})
 
 	metrics.Registry.MustRegister(appsetCollector)
 
@@ -91,7 +100,7 @@ func TestApplicationsetCollector(t *testing.T) {
     assert.Equal(t, http.StatusOK, rr.Code)
     assert.Contains(t, rr.Body.String(), `
 # TYPE argocd_appset_info gauge
-argocd_appset_info{name="test",namespace="argocd"} 1
+argocd_appset_info{name="test",namespace="argocd",resource_update_status="ApplicationSetUpToDate"} 1
 `,
 )
 }
