@@ -22,6 +22,13 @@ var (
 		append(descAppsetDefaultLabels, "resource_update_status"),
 		nil,
 	)
+
+	descAppsetGeneratedApps= prometheus.NewDesc(
+		"arocd_appset_owned_applications",
+		"Number of applications owned by the applicationset",
+		descAppsetDefaultLabels,
+		nil,
+	)
 )
 
 type ApplicationsetMetrics struct {
@@ -32,9 +39,10 @@ type appsetCollector struct {
 	lister applisters.ApplicationSetLister
 	//appsClientSet appclientset.Interface
 	labels  	  []string
+	filter	func(appset *argoappv1.ApplicationSet) bool
 }
 
-func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, appsetLabels []string) (*ApplicationsetMetrics) {
+func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, appsetLabels []string, appsetFilter func(appset *argoappv1.ApplicationSet) bool) (ApplicationsetMetrics) {
 
 	reconcileHistogram := prometheus.NewHistogramVec(
 		prometheus.HistogramOpts{
@@ -45,13 +53,13 @@ func NewApplicationsetMetrics(appsetLister applisters.ApplicationSetLister, apps
 		descAppsetDefaultLabels,
 	)
 
-	appsetCollector := newAppsetCollector(appsetLister, appsetLabels)
+	appsetCollector := newAppsetCollector(appsetLister, appsetLabels, appsetFilter)
 
 	// Rgister collectors and metrics
 	metrics.Registry.MustRegister(reconcileHistogram)
 	metrics.Registry.MustRegister(appsetCollector)
 
-	return &ApplicationsetMetrics{
+	return ApplicationsetMetrics{
 		reconcileHistogram: reconcileHistogram,
 	}
 }
@@ -60,7 +68,7 @@ func (m *ApplicationsetMetrics) ObserveRconcile(appset *argoappv1.ApplicationSet
 	m.reconcileHistogram.WithLabelValues(appset.Namespace,appset.Name).Observe(duration.Seconds())
 }
 
-func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string) (*appsetCollector) {
+func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string, filter func(appset *argoappv1.ApplicationSet) bool) (*appsetCollector) {
 
 	descAppsetDefaultLabels = []string{"namespace", "name"}
 
@@ -75,13 +83,16 @@ func newAppsetCollector(lister applisters.ApplicationSetLister, labels []string)
 
 	return (&appsetCollector{
 		lister: lister,
-		labels:		   labels,
+		labels: labels,
+		filter: filter,
 	})
 }
 
 // Describe implements the prometheus.Collector interface
 func (c *appsetCollector) Describe(ch chan<- *prometheus.Desc) {
 		ch <- descAppsetInfo
+		ch <- descAppsetGeneratedApps
+
 		if len(c.labels) > 0 {
 			ch <- descAppsetLabels
 		}
@@ -92,25 +103,32 @@ func (c *appsetCollector) Collect(ch chan<- prometheus.Metric) {
 	appsets, _ := c.lister.List(labels.NewSelector())
 
 	for _, appset := range appsets {
-		var labelValues =  make([]string,0)
-		commonLabelValues := []string{appset.Namespace, appset.Name}
-
-		for _,label := range c.labels {
-			labelValues = append(labelValues, appset.GetLabels()[label])
+		if c.filter(appset){
+			collectAppset(appset, c.labels, ch)
 		}
-
-		if len(c.labels) > 0 {
-			ch <- prometheus.MustNewConstMetric(descAppsetLabels, prometheus.GaugeValue, 1, append(commonLabelValues, labelValues...)...)
-		}
-
-		resourceUpdateStatus := "Unknown"
-
-		for _,condition := range appset.Status.Conditions {
-			if condition.Type == argoappv1.ApplicationSetConditionResourcesUpToDate {
-				resourceUpdateStatus = condition.Reason
-			}
-		}
-
-		ch <- prometheus.MustNewConstMetric(descAppsetInfo, prometheus.GaugeValue, 1 , appset.Namespace, appset.Name, resourceUpdateStatus)
 	}
+}
+
+func collectAppset(appset *argoappv1.ApplicationSet,labelsToCollect []string,ch chan<- prometheus.Metric) {
+	var labelValues =  make([]string,0)
+	commonLabelValues := []string{appset.Namespace, appset.Name}
+
+	for _,label := range labelsToCollect {
+		labelValues = append(labelValues, appset.GetLabels()[label])
+	}
+
+	resourceUpdateStatus := "Unknown"
+
+	for _,condition := range appset.Status.Conditions {
+		if condition.Type == argoappv1.ApplicationSetConditionResourcesUpToDate {
+			resourceUpdateStatus = condition.Reason
+		}
+	}
+
+	if len(labelsToCollect) > 0 {
+		ch <- prometheus.MustNewConstMetric(descAppsetLabels, prometheus.GaugeValue, 1, append(commonLabelValues, labelValues...)...)
+	}
+
+	ch <- prometheus.MustNewConstMetric(descAppsetInfo, prometheus.GaugeValue, 1 , appset.Namespace, appset.Name, resourceUpdateStatus)
+	ch <- prometheus.MustNewConstMetric(descAppsetGeneratedApps, prometheus.GaugeValue, float64(len(appset.Status.Resources)), appset.Namespace, appset.Name)
 }

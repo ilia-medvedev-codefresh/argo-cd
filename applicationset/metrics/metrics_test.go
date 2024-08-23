@@ -9,17 +9,27 @@ import (
 	// "strings"
 	"testing"
 
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+
 	//appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned/fake"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/apimachinery/pkg/runtime"
+	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/yaml"
-  ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
+
+var (
+	applicationsetNamespaces = []string{"argocd","test-namespace1"}
+
+	filter = func(appset *argoappv1.ApplicationSet) bool {
+		return utils.IsNamespaceAllowed(applicationsetNamespaces, appset.Namespace)
+	}
+)
+
 
 const fakeAppset1 = `
 apiVersion: argoproj.io/v1alpha1
@@ -80,12 +90,12 @@ func TestApplicationsetCollector(t *testing.T) {
 
 
   scheme := runtime.NewScheme()
-	err := v1alpha1.AddToScheme(scheme)
+	err := argoappv1.AddToScheme(scheme)
   assert.NoError(t, err)
 
   client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appsets...).Build()
 
-	appsetCollector := newAppsetCollector(NewAppsetLister(client), []string{})
+	appsetCollector := newAppsetCollector(NewAppsetLister(client), []string{}, filter)
 
 	metrics.Registry.MustRegister(appsetCollector)
 

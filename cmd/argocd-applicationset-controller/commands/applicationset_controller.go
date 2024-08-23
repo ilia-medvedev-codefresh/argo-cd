@@ -196,6 +196,13 @@ func NewCommand() *cobra.Command {
 				startWebhookServer(webhookHandler, webhookAddr)
 			}
 
+			metrics := appsetmetrics.NewApplicationsetMetrics(
+				appsetmetrics.NewAppsetLister(mgr.GetClient()),
+				metricsAplicationsetLabels,
+				func(appset *appv1alpha1.ApplicationSet) bool {
+					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
+				})
+
 			if err = (&controllers.ApplicationSetReconciler{
 				Generators:                 topLevelGenerators,
 				Client:                     mgr.GetClient(),
@@ -214,7 +221,7 @@ func NewCommand() *cobra.Command {
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
 				Cache:                      mgr.GetCache(),
-				Metrics:                    *appsetmetrics.NewApplicationsetMetrics(appsetmetrics.NewAppsetLister(mgr.GetClient()), metricsAplicationsetLabels),
+				Metrics:                    metrics,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
