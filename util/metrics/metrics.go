@@ -5,10 +5,8 @@ import (
 	"regexp"
 )
 
-var (
-	// Prometheus invalid labels, more info: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels.
-	invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
-)
+// Prometheus invalid labels, more info: https://prometheus.io/docs/concepts/data_model/#metric-names-and-labels.
+var invalidPromLabelChars = regexp.MustCompile(`[^a-zA-Z0-9_]`)
 
 func NormalizeLabels(prefix string, labels []string) []string {
 	results := []string{}

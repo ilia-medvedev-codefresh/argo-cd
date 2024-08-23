@@ -70,7 +70,7 @@ func NewCommand() *cobra.Command {
 		allowedScmProviders          []string
 		globalPreservedAnnotations   []string
 		globalPreservedLabels        []string
-		metricsAplicationsetLabels	 []string
+		metricsAplicationsetLabels   []string
 		enableScmProviders           bool
 		webhookParallelism           int
 	)

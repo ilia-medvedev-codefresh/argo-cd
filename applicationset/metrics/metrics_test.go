@@ -12,25 +12,27 @@ import (
 	"github.com/argoproj/argo-cd/v2/applicationset/utils"
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
-	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 	fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
 
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 	"sigs.k8s.io/yaml"
 )
 
 var (
-	applicationsetNamespaces = []string{"argocd","test-namespace1"}
+	applicationsetNamespaces = []string{"argocd", "test-namespace1"}
 
 	filter = func(appset *argoappv1.ApplicationSet) bool {
 		return utils.IsNamespaceAllowed(applicationsetNamespaces, appset.Namespace)
 	}
 
-  collectedLabels = []string{"included/test"}
+	collectedLabels = []string{"included/test"}
 )
 
 const fakeAppsetList = `
@@ -150,104 +152,102 @@ spec:
 `
 
 func newFakeAppsets(fakeAppsetYAML string) []argoappv1.ApplicationSet {
-  var results []argoappv1.ApplicationSet
+	var results []argoappv1.ApplicationSet
 
-  appsetRawYamls := strings.Split(fakeAppsetYAML, "---")
+	appsetRawYamls := strings.Split(fakeAppsetYAML, "---")
 
-  for _,appsetRawYaml := range(appsetRawYamls) {
-    var appset argoappv1.ApplicationSet
-    err := yaml.Unmarshal([]byte(appsetRawYaml), &appset)
+	for _, appsetRawYaml := range appsetRawYamls {
+		var appset argoappv1.ApplicationSet
+		err := yaml.Unmarshal([]byte(appsetRawYaml), &appset)
+		if err != nil {
+			panic(err)
+		}
 
-    if err != nil {
-      panic(err)
-    }
+		results = append(results, appset)
+	}
 
-    results = append(results, appset)
-  }
-
-  return results
+	return results
 }
 
 func TestApplicationsetCollector(t *testing.T) {
 	appsetList := newFakeAppsets(fakeAppsetList)
-  client := initializeClient(appsetList)
+	client := initializeClient(appsetList)
 
 	appsetCollector := newAppsetCollector(utils.NewAppsetLister(client), collectedLabels, filter)
 
 	metrics.Registry.MustRegister(appsetCollector)
 	req, err := http.NewRequest("GET", "/metrics", nil)
-  assert.NoError(t, err)
+	require.NoError(t, err)
 	rr := httptest.NewRecorder()
-  handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
-  handler.ServeHTTP(rr, req)
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	handler.ServeHTTP(rr, req)
 
-  assert.Equal(t, http.StatusOK, rr.Code)
-  // Test correct appset_info and owned applications
-  assert.Contains(t, rr.Body.String(), `
+	assert.Equal(t, http.StatusOK, rr.Code)
+	// Test correct appset_info and owned applications
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_info{name="test1",namespace="argocd",resource_update_status="ApplicationSetUpToDate"} 1
-`,)
-  assert.Contains(t, rr.Body.String(), `
+`)
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_owned_applications{name="test1",namespace="argocd"} 2
-`,)
-  // Test labels collection - should not include labels not included in the list of collected labels and include the ones that do.
-  assert.Contains(t, rr.Body.String(), `
+`)
+	// Test labels collection - should not include labels not included in the list of collected labels and include the ones that do.
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_labels{label_included_test="test",name="test1",namespace="argocd"} 1
-`,)
-  assert.NotContains(t, rr.Body.String(), normalizeLabel("not-included.label/test"))
-  // If collected label is not present on the applicationset the value should be empty
-  assert.Contains(t, rr.Body.String(), `
+`)
+	assert.NotContains(t, rr.Body.String(), normalizeLabel("not-included.label/test"))
+	// If collected label is not present on the applicationset the value should be empty
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_labels{label_included_test="",name="test2",namespace="argocd"} 1
-`,)
-  // If ResourcesUpToDate condition is not present on the applicationset the status should be reported as 'Unknown'
-  assert.Contains(t, rr.Body.String(), `
+`)
+	// If ResourcesUpToDate condition is not present on the applicationset the status should be reported as 'Unknown'
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_info{name="test2",namespace="argocd",resource_update_status="Unknown"} 1
-`,)
-  // If there are no resources on the applicationset the owned application gague should return 0
-  assert.Contains(t, rr.Body.String(), `
+`)
+	// If there are no resources on the applicationset the owned application gague should return 0
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_owned_applications{name="test2",namespace="argocd"} 0
 `)
-  // Test that filter is working
-  assert.NotContains(t, rr.Body.String(), `name="should-be-filtered-out"`)
+	// Test that filter is working
+	assert.NotContains(t, rr.Body.String(), `name="should-be-filtered-out"`)
 }
 
 func TestObserverReconcile(t *testing.T) {
-    appsetList := newFakeAppsets(fakeAppsetList)
-    client := initializeClient(appsetList)
+	appsetList := newFakeAppsets(fakeAppsetList)
+	client := initializeClient(appsetList)
 
-    appsetMetrics := NewApplicationsetMetrics(NewAppsetLister(client), collectedLabels, filter)
+	appsetMetrics := NewApplicationsetMetrics(utils.NewAppsetLister(client), collectedLabels, filter)
 
-    req, err := http.NewRequest("GET", "/metrics", nil)
-    assert.NoError(t, err)
-    rr := httptest.NewRecorder()
-    handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
-    appsetMetrics.ObserveRconcile(&appsetList[0], 5*time.Second)
-    handler.ServeHTTP(rr, req)
-    assert.Contains(t, rr.Body.String(), `
+	req, err := http.NewRequest("GET", "/metrics", nil)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	handler := promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{})
+	appsetMetrics.ObserveRconcile(&appsetList[0], 5*time.Second)
+	handler.ServeHTTP(rr, req)
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_reconcile_sum{name="test1",namespace="argocd"} 5
-`,)
-  // If there are no resources on the applicationset the owned application gague should return 0
-  assert.Contains(t, rr.Body.String(), `
+`)
+	// If there are no resources on the applicationset the owned application gague should return 0
+	assert.Contains(t, rr.Body.String(), `
 argocd_appset_reconcile_count{name="test1",namespace="argocd"} 1
 `)
 }
 
 func initializeClient(appsets []argoappv1.ApplicationSet) ctrlclient.WithWatch {
-  scheme := runtime.NewScheme()
+	scheme := runtime.NewScheme()
 	err := argoappv1.AddToScheme(scheme)
+	if err != nil {
+		panic(err)
+	}
 
-  if err != nil {
-    panic(err)
-  }
+	var clientObjects []ctrlclient.Object
 
-  var clientObjects []ctrlclient.Object
+	for _, appset := range appsets {
+		clientObjects = append(clientObjects, appset.DeepCopy())
+	}
 
-  for _,appset := range appsets {
-    clientObjects = append(clientObjects, appset.DeepCopy())
-  }
-
-  return fake.NewClientBuilder().WithScheme(scheme).WithObjects(clientObjects...).Build()
+	return fake.NewClientBuilder().WithScheme(scheme).WithObjects(clientObjects...).Build()
 }
 
 func normalizeLabel(label string) string {
-  return metricsutil.NormalizeLabels("label", []string{label})[0]
+	return metricsutil.NormalizeLabels("label", []string{label})[0]
 }

@@ -47,7 +47,6 @@ type Renderer interface {
 
 type Render struct{}
 
-
 func IsNamespaceAllowed(namespaces []string, namespace string) bool {
 	return glob.MatchStringInList(namespaces, namespace, glob.REGEXP)
 }
