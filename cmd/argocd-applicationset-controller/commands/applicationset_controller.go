@@ -197,7 +197,7 @@ func NewCommand() *cobra.Command {
 			}
 
 			metrics := appsetmetrics.NewApplicationsetMetrics(
-				appsetmetrics.NewAppsetLister(mgr.GetClient()),
+				utils.NewAppsetLister(mgr.GetClient()),
 				metricsAplicationsetLabels,
 				func(appset *appv1alpha1.ApplicationSet) bool {
 					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)

@@ -1,4 +1,4 @@
-package metrics
+package utils
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	ctrlclient "sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// Implements AppsetLister interface
+// Implements AppsetLister interface with controller-runtime client
 type AppsetLister struct {
 	Client ctrlclient.Client
 }

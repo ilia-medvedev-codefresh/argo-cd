@@ -5,7 +5,6 @@ import (
 	"time"
 
 	argoappv1 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	//appclientset "github.com/argoproj/argo-cd/v2/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v2/pkg/client/listers/application/v1alpha1"
 	metricsutil "github.com/argoproj/argo-cd/v2/util/metrics"
 	"github.com/prometheus/client_golang/prometheus"
@@ -24,7 +23,7 @@ var (
 	)
 
 	descAppsetGeneratedApps= prometheus.NewDesc(
-		"arocd_appset_owned_applications",
+		"argocd_appset_owned_applications",
 		"Number of applications owned by the applicationset",
 		descAppsetDefaultLabels,
 		nil,
