@@ -220,7 +220,6 @@ func NewCommand() *cobra.Command {
 				SCMRootCAPath:              scmRootCAPath,
 				GlobalPreservedAnnotations: globalPreservedAnnotations,
 				GlobalPreservedLabels:      globalPreservedLabels,
-				Cache:                      mgr.GetCache(),
 				Metrics:                    metrics,
 			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
